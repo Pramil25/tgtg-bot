@@ -23,6 +23,7 @@ Optional:
 import os
 import sys
 import time
+import datetime
 import requests
 from tgtg import TgtgClient
 
@@ -98,6 +99,10 @@ def main():
         access_token=os.environ["TGTG_ACCESS_TOKEN"],
         refresh_token=os.environ["TGTG_REFRESH_TOKEN"],
         cookie=os.environ["TGTG_COOKIE"],
+        # Treat the token as freshly refreshed so the library trusts it for its
+        # full lifetime instead of hitting the refresh endpoint on every run --
+        # that endpoint is the one most likely to trip TGTG's anti-bot captcha.
+        last_time_token_refreshed=datetime.datetime.now(),
     )
 
     deadline = time.time() + RUN_SECONDS
