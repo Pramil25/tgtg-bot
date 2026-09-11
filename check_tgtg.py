@@ -13,7 +13,11 @@ Required environment variables:
     NTFY_TOPIC        e.g. "pramil-tgtg-8f3k2" (pick something unique/hard to guess)
 
 Optional:
-    STORE_SEARCH      free-text search, default "Fob Sushi Bellevue"
+    STORE_SEARCH      free-text filter, default "Fob Sushi"
+    LATITUDE          default 47.6152 (Fob Sushi Bar, 333 108th Ave NE, Bellevue WA)
+    LONGITUDE         default -122.1932
+    RADIUS_KM         default 2 (keeps results limited to that Bellevue location,
+                       not the separate Seattle/Belltown Fob Sushi store)
 """
 
 import os
@@ -22,7 +26,10 @@ import time
 import requests
 from tgtg import TgtgClient
 
-STORE_SEARCH = os.environ.get("STORE_SEARCH", "Fob Sushi Bellevue")
+STORE_SEARCH = os.environ.get("STORE_SEARCH", "Fob Sushi")
+LATITUDE = float(os.environ.get("LATITUDE", "47.6152"))
+LONGITUDE = float(os.environ.get("LONGITUDE", "-122.1932"))
+RADIUS_KM = int(os.environ.get("RADIUS_KM", "2"))
 NTFY_TOPIC = os.environ["NTFY_TOPIC"]
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "20"))   # seconds between checks
 RUN_SECONDS = int(os.environ.get("RUN_SECONDS", "280"))       # how long to keep looping this run
@@ -44,18 +51,28 @@ def notify(title: str, message: str):
 def check_once(client, already_notified: set) -> set:
     """Runs one check; returns updated set of store names currently notified-on."""
     try:
-        items = client.get_items(favorites_only=False, search_string=STORE_SEARCH)
+        items = client.get_items(
+            latitude=LATITUDE,
+            longitude=LONGITUDE,
+            radius=RADIUS_KM,
+            favorites_only=False,
+            discover=True,
+            search_phrase=STORE_SEARCH,
+            with_stock_only=False,
+        )
     except Exception as e:
         print(f"Error querying TGTG: {e}", file=sys.stderr)
         return already_notified
 
     if not items:
-        print(f"No store found matching '{STORE_SEARCH}'.")
+        print(f"No store found matching '{STORE_SEARCH}' near ({LATITUDE}, {LONGITUDE}).")
         return already_notified
 
     still_available = set()
     for item in items:
         store_name = item.get("store", {}).get("store_name", "Unknown store")
+        if "bellevue" not in store_name.lower():
+            continue  # extra safety net: skip any other Fob Sushi location the radius picked up
         available = item.get("items_available", 0)
         price = item.get("item", {}).get("price_including_taxes", {})
         price_str = (
