@@ -30,6 +30,9 @@ jobs:
           TGTG_REFRESH_TOKEN: ${{ secrets.TGTG_REFRESH_TOKEN }}
           TGTG_COOKIE: ${{ secrets.TGTG_COOKIE }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          STORE_SEARCH: "Fob Sushi Bellevue"
+          STORE_SEARCH: "Fob Sushi"
+          LATITUDE: "47.6152"
+          LONGITUDE: "-122.1932"
+          RADIUS_KM: "2"
           POLL_INTERVAL: "20"    # seconds between checks within a run
           RUN_SECONDS: "280"     # ~4m40s, leaves buffer before next 5-min trigger
