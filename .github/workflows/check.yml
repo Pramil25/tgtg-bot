@@ -1,0 +1,35 @@
+name: Check Fob Sushi TGTG availability
+
+# GitHub's cron scheduler can't trigger more often than every 5 minutes, so
+# instead each triggered run loops internally (checking every ~20s) for
+# most of that 5-minute window, giving near-continuous coverage.
+# NOTE: this only stays free if the repo is PUBLIC (unlimited Actions
+# minutes). On a private repo this would burn through the free 2,000
+# min/month quota in under a day.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install tgtg requests
+
+      - run: python check_tgtg.py
+        env:
+          TGTG_ACCESS_TOKEN: ${{ secrets.TGTG_ACCESS_TOKEN }}
+          TGTG_REFRESH_TOKEN: ${{ secrets.TGTG_REFRESH_TOKEN }}
+          TGTG_COOKIE: ${{ secrets.TGTG_COOKIE }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          STORE_SEARCH: "Fob Sushi Bellevue"
+          POLL_INTERVAL: "20"    # seconds between checks within a run
+          RUN_SECONDS: "280"     # ~4m40s, leaves buffer before next 5-min trigger
