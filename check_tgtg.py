@@ -25,6 +25,7 @@ import sys
 import time
 import datetime
 import requests
+from typing import Optional
 from tgtg import TgtgClient
 
 STORE_SEARCH = os.environ.get("STORE_SEARCH", "Fob Sushi")
@@ -36,15 +37,18 @@ POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "20"))   # seconds between c
 RUN_SECONDS = int(os.environ.get("RUN_SECONDS", "280"))       # how long to keep looping this run
 
 
-def notify(title: str, message: str):
+def notify(title: str, message: str, click_url: Optional[str] = None):
+    headers = {
+        "Title": title.encode("utf-8"),
+        "Priority": "urgent",
+        "Tags": "sushi,bell",
+    }
+    if click_url:
+        headers["Click"] = click_url  # tapping the notification opens this
     requests.post(
         f"https://ntfy.sh/{NTFY_TOPIC}",
         data=message.encode("utf-8"),
-        headers={
-            "Title": title.encode("utf-8"),
-            "Priority": "urgent",
-            "Tags": "sushi,bell",
-        },
+        headers=headers,
         timeout=15,
     )
 
@@ -75,6 +79,8 @@ def check_once(client, already_notified: set) -> set:
         if "bellevue" not in store_name.lower():
             continue  # extra safety net: skip any other Fob Sushi location the radius picked up
         available = item.get("items_available", 0)
+        item_id = item.get("item", {}).get("item_id")
+        share_url = f"https://share.toogoodtogo.com/item/{item_id}/" if item_id else None
         price = item.get("item", {}).get("price_including_taxes", {})
         price_str = (
             f"${price.get('minor_units', 0) / (10 ** price.get('decimals', 2)):.2f}"
@@ -88,7 +94,8 @@ def check_once(client, already_notified: set) -> set:
             if store_name not in already_notified:
                 notify(
                     title=f"🍣 {store_name}: {available} bag(s) available!",
-                    message=f"Price {price_str} — open the TGTG app now to reserve.",
+                    message=f"Price {price_str} — tap to open in the TGTG app and reserve.",
+                    click_url=share_url,
                 )
 
     return still_available
